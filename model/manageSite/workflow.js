@@ -6,9 +6,6 @@ const projectSchema = new Schema({
   projectId: Schema.Types.ObjectId,
   authors: Array,
   authorType: String,
-  coverImage: String,
-  voiceOver: String,
-  introduction: String,
 }, {
   timestamps: { createdAt: 'created_at' },
 });
@@ -17,6 +14,11 @@ const projectSchema = new Schema({
 
 const consContentSchema = {
   projectId: String,
+  // intro page
+  coverImage: String,
+  voiceOver: String,
+  introduction: String,
+
   // a list of section name in the table of Content
   tableOfContent: [String],
   pages: [
@@ -33,6 +35,6 @@ const consContentSchema = {
   ],
 };
 
-exports.project = model('manage/project', projectSchema);
+exports.project = model('manage/exhibition_projects', projectSchema);
 
-exports.consContent = model('manage/consContent', consContentSchema);
+exports.consContent = model('manage/construct_contents', consContentSchema);

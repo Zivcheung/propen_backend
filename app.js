@@ -7,6 +7,9 @@ const cors = require('cors');
 /* database */
 const mongoose = require('mongoose');
 
+// deprecation patch
+mongoose.set('useFindAndModify', false);
+
 /* routers */
 const exhibitionRouter = require('./routes/exhibition');
 const indexRouter = require('./routes/index');

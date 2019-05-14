@@ -7,12 +7,32 @@ const uuidv4 = require('uuid/v4');
 
 exports.postProjectAndCreate = (req, res) => {
   const data = req.body;
+  // update
+  if (data.projectId) {
+    cModel.project.findOneAndUpdate({
+      projectId: data.projectId,
+    }, {
+      title: data.title,
+      currentStage: data.currentStage,
+      authors: data.authors,
+      authorType: data.authorType,
+    })
+      .then(() => {
+        res.json({
+          projectId: data.projectId,
+        });
+      })
+      .catch((err) => {
+        serverError(err, res);
+      });
+    return;
+  }
+  // create
   const projectId = mongoose.Types.ObjectId();
-
   async function createDoc() {
     await cModel.project.create({
       title: data.title,
-      currentStage: 'material_collection',
+      currentStage: data.currentStage,
       projectId,
       authors: data.authors,
       authorType: data.authorType,
@@ -28,9 +48,33 @@ exports.postProjectAndCreate = (req, res) => {
   });
 };
 
+exports.updateStage = (req, res) => {
+  const { stage } = req.body;
+
+  cModel.project.findOneAndUpdate({
+    // query
+    projectId: req.body.projectId,
+  }, {
+    // update
+    currentStage: stage,
+  }, {
+    // opt
+    runValidators: true,
+  })
+    .exec()
+    .then((d) => {
+      res.json({
+        stage: d,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+
 exports.postConstructContent = (req, res) => {
-  const body = req.body;
-  // need content validation 
+  const { body } = req;
+  // need content validation
   const data = {
     projectId: body.porjectId,
     // a list of section name in the table of Content
@@ -56,25 +100,33 @@ exports.postConstructContent = (req, res) => {
 };
 
 exports.updateConstructContent = (req, res) => {
-  const body = req.body;
+  const { body } = req;
 
   const data = {
-    projectId: body.porjectId,
-    // a list of section name in the table of Content
-    tableOfContent: body.tableOfContent,
+    projectId: body.projectId,
+    introduction: body.introduction,
+    introVoice: body.introVoice,
+    coverImage: body.coverImage,
     pages: body.pages,
+    tableOfContent: body.tableOfContent,
   };
-
-  cModel.consContent.update({ projectId: data.projectId }, {
+  console.log(body);
+  cModel.consContent.findOneAndUpdate({ projectId: body.projectId }, {
     ...data,
-  })
+  }, {
+    runValidators: true,
+    maxTimeMS: 60 * 1000,
+    upsert: true,
+  }).exec()
     .then(() => {
+      console.log('success');
       res.status = 200;
       res.json({
-        projectId: data.projectId,
+        projectId: body.projectId,
       });
     })
     .catch((err) => {
+      console.log('fail');
       serverError(err, res);
     });
 };
@@ -111,6 +163,7 @@ exports.uploadContentImage = (req, res) => {
 
     res.json({
       url: awsRes.Location,
+      s3Key: awsRes.key,
     });
   }
 
@@ -137,10 +190,30 @@ exports.uploadContentVoiceover = (req, res) => {
     }).promise();
     res.json({
       url: awsRes.Location,
+      s3Key: awsRes.Key,
     });
   }
 
   audioupload().catch((err) => {
+    serverError(err, res);
+  });
+};
+
+exports.deleteContentUpload = (req, res) => {
+  const s3Key = decodeURIComponent(req.query.key);
+  const bucketParam = {
+    Bucket: 'propen.exhibition.resources',
+    Key: s3Key,
+  };
+  async function deleteFile() {
+    await s3.deleteObject({
+      ...bucketParam,
+    }).promise();
+
+    res.end();
+  }
+
+  deleteFile().catch((err) => {
     serverError(err, res);
   });
 };
