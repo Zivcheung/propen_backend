@@ -1,9 +1,49 @@
 const mongoose = require('mongoose');
-const cModel = require('../../model/manageSite/workflow');
-const { serverError } = require('../../common/errorRes');
 const sharp = require('sharp');
 const aws = require('aws-sdk');
 const uuidv4 = require('uuid/v4');
+const cModel = require('../../model/manageSite/workflow');
+const { serverError } = require('../../common/errorRes');
+
+
+exports.getProjectList = (req, res) => {
+  const { startFrom, pageNumber } = req.query;
+  const pageSize = 5;
+
+  let query;
+  if (!startFrom) {
+    query = {
+      currentStage: { $not: { $eq: 'completed' } },
+    };
+  } else {
+    query = {
+      $and: [
+        { currentStage: { $not: { $eq: 'completed' } } },
+        { _id: { $lt: startFrom || '' } },
+      ],
+    };
+  }
+
+  (async function run() {
+    const s1 = cModel.project.countDocuments(query).exec();
+    const s2 = cModel.project.find(query)
+      .skip((pageNumber - 1) * pageSize)
+      .sort({ createdAt: -1 })
+      .limit(pageSize)
+      .exec();
+
+    const totalNumber = await s1;
+    const projectList = await s2;
+    console.log(projectList);
+    res.json({
+      totalNumber,
+      projectList,
+    });
+  }())
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
 
 exports.postProjectAndCreate = (req, res) => {
   const data = req.body;
@@ -28,7 +68,7 @@ exports.postProjectAndCreate = (req, res) => {
     return;
   }
   // create
-  const projectId = mongoose.Types.ObjectId();
+  const projectId = mongoose.Types.ObjectId().toString();
   async function createDoc() {
     await cModel.project.create({
       title: data.title,
@@ -48,6 +88,28 @@ exports.postProjectAndCreate = (req, res) => {
   });
 };
 
+exports.getCreateState = (req, res) => {
+  const { projectId } = req.query;
+  cModel.project.findOne({
+    projectId,
+  })
+    .exec()
+    .then((doc) => {
+      const data = {
+        title: doc.title,
+        authorType: doc.authorType,
+        authors: doc.authors,
+        stage: doc.currentStage,
+      };
+
+      res.json({
+        ...data,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
 exports.updateStage = (req, res) => {
   const { stage } = req.body;
 
@@ -65,6 +127,131 @@ exports.updateStage = (req, res) => {
     .then((d) => {
       res.json({
         stage: d,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+
+/*
+* --------------------------------------
+* material collection state        ~  ~ |
+* --------------------------------------
+*/
+
+exports.getTemplateOptions = (req, res) => {
+  cModel.materialCollectionTemplate.find()
+    .exec()
+    .then((doc) => {
+      console.log(doc);
+      const optionList = doc.map((item) => {
+        console.log(item.name);
+        return item.name;
+      });
+      console.log(optionList);
+      res.json({
+        optionList,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+
+exports.getMaterialTemplate = (req, res) => {
+  const { templateName } = req.query;
+  const decodedName = decodeURIComponent(templateName);
+  cModel.materialCollectionTemplate.findOne({ name: decodedName })
+    .exec()
+    .then((doc) => {
+      console.log(doc);
+      const template = [];
+      const keys = Object.keys(doc.content);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        template.push({
+          name: k,
+          description: doc.content[k].description,
+          state: 'unsubmitted',
+        });
+      }
+
+      res.json({
+        template,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+
+exports.saveCollectionList = (req, res) => {
+  const { projectId, collectionList } = req.body;
+  if (!projectId) {
+    res.status(400);
+    res.type('text/plain');
+    res.send('request should have a projectId');
+    console.log('request should have a projectId');
+  }
+  cModel.materialCollection.findOneAndUpdate({
+    projectId,
+  }, {
+    projectId,
+    collectionList,
+  }, {
+    upsert: true,
+  })
+    .exec()
+    .then((doc) => {
+      res.json(doc);
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+
+exports.getMaterialCollection = (req, res) => {
+  const { projectId } = req.query;
+
+  cModel.materialCollection.findOne({
+    projectId,
+  })
+    .exec()
+    .then((doc) => {
+      if (doc == null) {
+        res.json(null);
+      } else {
+        res.json({
+          collectionList: doc.collectionList,
+        });
+      }
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
+};
+/*
+* --------------------------------------
+* constructing state        ~  ~ |
+* --------------------------------------
+*/
+exports.getConstructingStage = (req, res) => {
+  const { projectId } = req.query;
+
+  cModel.consContent.findOne({
+    projectId,
+  })
+    .then((doc) => {
+      if (!doc) {
+        res.json(null);
+        return;
+      }
+      res.json({
+        tableOfContent: doc.tableOfContent,
+        coverImage: doc.coverImage,
+        introduction: doc.introduction,
+        pages: doc.pages,
       });
     })
     .catch((err) => {
@@ -105,7 +292,7 @@ exports.updateConstructContent = (req, res) => {
   const data = {
     projectId: body.projectId,
     introduction: body.introduction,
-    introVoice: body.introVoice,
+    introVoiceover: body.introVoiceover,
     coverImage: body.coverImage,
     pages: body.pages,
     tableOfContent: body.tableOfContent,
@@ -134,17 +321,55 @@ exports.updateConstructContent = (req, res) => {
 // s3 image and audio upload;
 const s3 = new aws.S3({
 });
+exports.uploadCoverImage = (req, res) => {
+  const image = req.file;
+  const folderInfo = req.body;
+  const width = 3000;
+  const height = 1688;
+  const fileName = `${folderInfo.sectionName}_${image.originalname.replace(/\..*/, '')}_${uuidv4()}`;
+  const folderPath = `${'projectContentImage'}/${folderInfo.project}`;
+
+  const bucketParam = {
+    Bucket: 'propen.exhibition.resources',
+    Key: `${folderPath}/${fileName}.webp`,
+    ACL: 'public-read',
+  };
+  async function imageProcessing() {
+    const image2x = await sharp(image.buffer)
+      .resize({
+        width,
+        height,
+        fit: 'cover',
+      })
+      .webp()
+      .toBuffer();
+    const awsRes = await s3.upload({
+      ...bucketParam,
+      Body: image2x,
+    }).promise();
+
+    res.json({
+      url: awsRes.Location,
+      s3Key: awsRes.key,
+    });
+  }
+
+  imageProcessing().catch((err) => {
+    serverError(err, res);
+  });
+};
+
 exports.uploadContentImage = (req, res) => {
   const image = req.file;
   const folderInfo = req.body;
   const width = 780 * 2;
   const height = 585 * 2;
-  const fileName = `${folderInfo.sectionName}_${image.originalname.replace('.png', '')}_${uuidv4()}`;
+  const fileName = `${folderInfo.sectionName}_${image.originalname.replace(/\..*/, '')}_${uuidv4()}`;
   const folderPath = `${'projectContentImage'}/${folderInfo.project}`;
 
   const bucketParam = {
     Bucket: 'propen.exhibition.resources',
-    Key: `${folderPath}/${fileName}.png`,
+    Key: `${folderPath}/${fileName}.webp`,
     ACL: 'public-read',
   };
   async function imageProcessing() {
@@ -154,7 +379,7 @@ exports.uploadContentImage = (req, res) => {
         height,
         fit: 'contain',
       })
-      .png()
+      .webp()
       .toBuffer();
     const awsRes = await s3.upload({
       ...bucketParam,
@@ -216,4 +441,31 @@ exports.deleteContentUpload = (req, res) => {
   deleteFile().catch((err) => {
     serverError(err, res);
   });
+};
+
+/*
+* --------------------------------------
+* finish state        ~  ~ |
+* --------------------------------------
+*/
+exports.updateFinishStage = (req, res) => {
+  const { projectId, ...info } = req.body;
+
+  cModel.finishInformation.findOneAndUpdate({
+    projectId,
+  }, {
+    projectId,
+    ...info,
+  }, {
+    upsert: true,
+  })
+    .exec()
+    .then((doc) => {
+      res.json({
+        projectId: doc && doc.projectId,
+      });
+    })
+    .catch((err) => {
+      serverError(err, res);
+    });
 };

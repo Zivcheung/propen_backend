@@ -5,8 +5,7 @@ const router = express.Router();
 
 
 // get exhibition intro
-router.get('/exhibitionIntro', controller.exhiIntro);
+// router.get('/exhibitionIntro', controller.exhiIntro);
 
-// router.put('/exhibitionIntro')
 
 module.exports = router;

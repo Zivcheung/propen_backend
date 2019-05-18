@@ -16,6 +16,7 @@ const indexRouter = require('./routes/index');
 
 // manage site router
 const workflow = require('./routes/manageSite/workflow');
+const general = require('./routes/manageSite/general');
 
 // initiate express
 const app = express();
@@ -36,6 +37,7 @@ mongoose.connect(uri, { useNewUrlParser: true })
     // init all router after db connected
     app.use('/', indexRouter);
     app.use('/REST/exhibition', exhibitionRouter);
+    app.use('/REST/manageSite/', general);
     app.use('/REST/manageSite/workflow', workflow);
   })
   .catch((err) => {
