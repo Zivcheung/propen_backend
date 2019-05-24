@@ -26,8 +26,8 @@ const exhibitionSchema = new Schema({
 });
 
 const commentSchema = new Schema({
-  projectId: String,
-  where: String, // general or sectionId
+  exhibition: String,
+  where: String, // general or pageId
   userId: Schema.Types.ObjectId,
   comment: String,
   postedAt: Date,
@@ -39,6 +39,7 @@ const commentSchema = new Schema({
     },
   ],
 });
+commentSchema.index({ postedAt: -1 });
 
 module.exports = {
   exhibition: model('exhibitions', exhibitionSchema),

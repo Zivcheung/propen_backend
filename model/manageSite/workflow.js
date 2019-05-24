@@ -27,6 +27,7 @@ const consContentSchema = {
     {
       sectionName: String,
       pageNumber: Number,
+      pageName: String,
       illustrations: [{
         name: String,
         url: String,

@@ -259,32 +259,32 @@ exports.getConstructingStage = (req, res) => {
     });
 };
 
-exports.postConstructContent = (req, res) => {
-  const { body } = req;
-  // need content validation
-  const data = {
-    projectId: body.porjectId,
-    // a list of section name in the table of Content
-    tableOfContent: body.tableOfContent,
-    pages: body.pages,
-  };
+// exports.postConstructContent = (req, res) => {
+//   const { body } = req;
+//   // need content validation
+//   const data = {
+//     projectId: body.porjectId,
+//     // a list of section name in the table of Content
+//     tableOfContent: body.tableOfContent,
+//     pages: body.pages,
+//   };
 
-  async function createConsContent() {
-    await cModel.consContent.create({
-      ...data,
-    });
+//   async function createConsContent() {
+//     await cModel.consContent.create({
+//       ...data,
+//     });
 
-    res.status(200);
-    res.json({
-      projectId: data.projectId,
-    });
-  }
+//     res.status(200);
+//     res.json({
+//       projectId: data.projectId,
+//     });
+//   }
 
-  // run
-  createConsContent().catch((err) => {
-    serverError(err, res);
-  });
-};
+//   // run
+//   createConsContent().catch((err) => {
+//     serverError(err, res);
+//   });
+// };
 
 exports.updateConstructContent = (req, res) => {
   const { body } = req;
@@ -297,7 +297,6 @@ exports.updateConstructContent = (req, res) => {
     pages: body.pages,
     tableOfContent: body.tableOfContent,
   };
-  console.log(body);
   cModel.consContent.findOneAndUpdate({ projectId: body.projectId }, {
     ...data,
   }, {
