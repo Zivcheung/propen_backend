@@ -28,7 +28,7 @@ const exhibitionSchema = new Schema({
 const commentSchema = new Schema({
   exhibition: String,
   where: String, // general or pageId
-  userId: Schema.Types.ObjectId,
+  userId: Schema.ObjectId,
   comment: String,
   postedAt: Date,
   children: [

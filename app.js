@@ -6,6 +6,7 @@ const cors = require('cors');
 const passport = require('passport');
 const session = require('express-session');
 
+
 // install user model and password middleware
 require('./config/passport');
 require('./model/clientSite/user');
@@ -20,6 +21,7 @@ mongoose.set('useFindAndModify', false);
 const exhibitionRouter = require('./routes/clientSite/exhibition');
 const indexRouter = require('./routes/index');
 const clientUserRouter = require('./routes/clientSite/user');
+const documentationRouter = require('./routes/clientSite/documentation');
 
 // manage site router
 const workflow = require('./routes/manageSite/workflow');
@@ -30,8 +32,15 @@ const app = express();
 
 // initiate mongoose
 const uri = 'mongodb+srv://tianzhu:mimipao123%2C.%2F@cluster0-ekakp.mongodb.net/propen';
+const whitelist = ['http://localhost:8080','http://localhost:8081'];
 app.use(cors({
-  origin: 'http://localhost:8080',
+  origin: (origin, callback) => {
+    if (whitelist.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(logger('dev')); // logger
@@ -48,7 +57,6 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-
 mongoose.connect(uri, { useNewUrlParser: true })
   .then(() => {
     console.log('mongodb connected');
@@ -57,6 +65,7 @@ mongoose.connect(uri, { useNewUrlParser: true })
     app.use('/', indexRouter);
     app.use('/REST/clientSite', exhibitionRouter);
     app.use('/REST/clientSite', clientUserRouter);
+    app.use('/REST/clientSite', documentationRouter);
     app.use('/REST/manageSite/', general);
     app.use('/REST/manageSite/workflow', workflow);
   })

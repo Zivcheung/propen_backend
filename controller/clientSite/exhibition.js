@@ -190,7 +190,10 @@ exports.getComment = (req, res) => {
       },
     },
     {
-      $unwind: '$user',
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: true,
+      },
     },
     {
       $lookup: {
@@ -215,7 +218,10 @@ exports.getComment = (req, res) => {
       },
     },
     {
-      $unwind: '$userProfile',
+      $unwind: {
+        path: '$userProfile',
+        preserveNullAndEmptyArrays: true,
+      },
     },
     {
       $lookup: {
@@ -264,6 +270,8 @@ exports.getComment = (req, res) => {
   eModel.comment.aggregate(aggregateQuery)
     .exec()
     .then((doc) => {
+      console.log('comment aggregation');
+      console.log(doc)
       const flattenComments = doc.map((item) => {
         const flatten = [];
         flatten.push(_.omit(item, ['children']));
@@ -271,6 +279,7 @@ exports.getComment = (req, res) => {
       });
       res.json({
         flattenComments,
+        // a: 1,
       });
     })
     .catch(err => serverError(err, res));
